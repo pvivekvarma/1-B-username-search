@@ -1,9 +1,10 @@
-package seeds
+package seed
 
 import (
 	"bufio"
 	"context"
 	"fmt"
+	"github.com/jackc/pgx/v5"
 	"io"
 	"log"
 	"os"
@@ -12,10 +13,20 @@ import (
 	"time"
 )
 
-func (s Seed) PgSimpleUsernameSeed() {
-	absPathUsernames, _ := filepath.Abs("./data/xato-net-10-million-usernames.txt")
-	absPathFamilynames, _ := filepath.Abs("./data/familynames.txt")
+type SeedStrategy interface {
+	Execute() error
+}
+
+type SimpleUsernamePKSeedStrategy struct {
+	Db *pgx.Conn
+}
+
+func (s *SimpleUsernamePKSeedStrategy) Execute() error {
+	absPathUsernames, _ := filepath.Abs("../data/xato-net-10-million-usernames.txt")
+	absPathFamilynames, _ := filepath.Abs("../data/familynames.txt")
 	readUsernamesFile, err := os.Open(absPathUsernames)
+
+	TableName := "testsimple"
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -40,16 +51,16 @@ func (s Seed) PgSimpleUsernameSeed() {
 		}
 	}(readFamilynamesFile)
 
-	dropTableString := fmt.Sprintf("DROP TABLE IF EXISTS simple;")
-	createTableString := fmt.Sprintf("CREATE TABLE simple (username varchar(255) PRIMARY KEY);")
+	dropTableString := fmt.Sprintf("DROP TABLE IF EXISTS %s;", TableName)
+	createTableString := fmt.Sprintf("CREATE TABLE %s (username varchar(255) PRIMARY KEY);", TableName)
 
-	_, err = s.db.Exec(context.Background(), dropTableString)
+	_, err = s.Db.Exec(context.Background(), dropTableString)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to drop table: %v\n", err)
 		os.Exit(1)
 	}
 
-	_, err = s.db.Exec(context.Background(), createTableString)
+	_, err = s.Db.Exec(context.Background(), createTableString)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to drop table: %v\n", err)
 		os.Exit(1)
@@ -57,15 +68,15 @@ func (s Seed) PgSimpleUsernameSeed() {
 
 	start := time.Now()
 
-	familynamesFileScanner := bufio.NewScanner(readFamilynamesFile)
-	familynamesFileScanner.Split(bufio.ScanLines)
+	familyNamesFileScanner := bufio.NewScanner(readFamilynamesFile)
+	familyNamesFileScanner.Split(bufio.ScanLines)
 	counter := 0
 	avgCounter := 0
 	batchSize := 1000
 
-	for familynamesFileScanner.Scan() {
-		familyname := familynamesFileScanner.Text()
-		fmt.Printf("FAMILYNAME: %v", familyname)
+	for familyNamesFileScanner.Scan() {
+		familyName := familyNamesFileScanner.Text()
+		fmt.Printf("FAMILYNAME: %v", familyName)
 		batchStart := time.Now()
 		usernames := make([]any, 0, batchSize)
 		valuesPlaceholder := make([]string, 0, batchSize)
@@ -83,14 +94,14 @@ func (s Seed) PgSimpleUsernameSeed() {
 		for usernamesFileScanner.Scan() {
 			counter++
 			batchIndex++
-			username := fmt.Sprintf("%v%v", usernamesFileScanner.Text(), strings.ToLower(familyname))
+			username := fmt.Sprintf("%v%v", usernamesFileScanner.Text(), strings.ToLower(familyName))
 			usernames = append(usernames, username)
 			valuesPlaceholder = append(valuesPlaceholder, fmt.Sprintf("($%d)", batchIndex%batchSize+1))
 
 			if batchIndex%batchSize == 0 {
 				avgCounter++
-				insertUsernameString := fmt.Sprintf("INSERT INTO simple (%s) VALUES %s;", "username", strings.Join(valuesPlaceholder, ", "))
-				_, err := s.db.Exec(context.Background(), insertUsernameString, usernames...)
+				insertUsernameString := fmt.Sprintf("INSERT INTO %s (%s) VALUES %s;", TableName, "username", strings.Join(valuesPlaceholder, ", "))
+				_, err := s.Db.Exec(context.Background(), insertUsernameString, usernames...)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to insert username %v due to %v", username, err.Error())
 					if !strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
@@ -108,4 +119,6 @@ func (s Seed) PgSimpleUsernameSeed() {
 		}
 	}
 	fmt.Printf("Took total of %v to insert %d records into database\n", time.Now().Sub(start), counter)
+
+	return nil
 }
