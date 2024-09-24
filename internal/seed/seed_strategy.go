@@ -3,6 +3,7 @@ package seed
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"github.com/jackc/pgx/v5"
 	"io"
@@ -28,26 +29,25 @@ func (s *SimpleUsernamePKSeedStrategy) Execute() error {
 
 	TableName := "testsimple"
 	if err != nil {
-		fmt.Println(err)
+		return errors.Join(err, errors.New("failed to open file"))
 	}
+
 	readFamilynamesFile, err := os.Open(absPathFamilynames)
 	if err != nil {
-		fmt.Println(err)
+		return errors.Join(err, errors.New("failed to open file"))
 	}
 
 	defer func(readFile *os.File) {
 		err := readFile.Close()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Exception when closing file: %v\n", err)
-			os.Exit(1)
+			log.Fatalf("Exception when closing file: %v\n", err)
 		}
 	}(readUsernamesFile)
 
 	defer func(readFile *os.File) {
 		err := readFile.Close()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Exception when closing file: %v\n", err)
-			os.Exit(1)
+			log.Fatalf("Exception when closing file: %v\n", err)
 		}
 	}(readFamilynamesFile)
 
@@ -56,13 +56,12 @@ func (s *SimpleUsernamePKSeedStrategy) Execute() error {
 
 	_, err = s.Db.Exec(context.Background(), dropTableString)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to drop table: %v\n", err)
-		os.Exit(1)
+		return errors.Join(err, errors.New("failed to drop table"))
 	}
 
 	_, err = s.Db.Exec(context.Background(), createTableString)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to drop table: %v\n", err)
+		return errors.Join(err, errors.New("failed to create table"))
 		os.Exit(1)
 	}
 
@@ -105,7 +104,7 @@ func (s *SimpleUsernamePKSeedStrategy) Execute() error {
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to insert username %v due to %v", username, err.Error())
 					if !strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
-						os.Exit(1)
+						return errors.Join(err, errors.New("failed to drop table"))
 					}
 				}
 				fmt.Printf("Inserted %d records\n", counter)
