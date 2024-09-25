@@ -1,8 +1,9 @@
-package seeds
+package seed
 
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -12,60 +13,60 @@ import (
 	"time"
 )
 
-func (s Seed) PgSimpleUsernameSeed() {
-	absPathUsernames, _ := filepath.Abs("./data/xato-net-10-million-usernames.txt")
-	absPathFamilynames, _ := filepath.Abs("./data/familynames.txt")
+func UsernamePKSeed(s *UsernamePKSeedStrategy) error {
+	absPathUsernames, _ := filepath.Abs("../data/xato-net-10-million-usernames.txt")
+	absPathFamilynames, _ := filepath.Abs("../data/familynames.txt")
 	readUsernamesFile, err := os.Open(absPathUsernames)
+
+	TableName := "testsimple"
 	if err != nil {
-		fmt.Println(err)
+		return errors.Join(err, errors.New("failed to open file"))
 	}
+
 	readFamilynamesFile, err := os.Open(absPathFamilynames)
 	if err != nil {
-		fmt.Println(err)
+		return errors.Join(err, errors.New("failed to open file"))
 	}
 
 	defer func(readFile *os.File) {
 		err := readFile.Close()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Exception when closing file: %v\n", err)
-			os.Exit(1)
+			log.Fatalf("Exception when closing file: %v\n", err)
 		}
 	}(readUsernamesFile)
 
 	defer func(readFile *os.File) {
 		err := readFile.Close()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Exception when closing file: %v\n", err)
-			os.Exit(1)
+			log.Fatalf("Exception when closing file: %v\n", err)
 		}
 	}(readFamilynamesFile)
 
-	dropTableString := fmt.Sprintf("DROP TABLE IF EXISTS simple;")
-	createTableString := fmt.Sprintf("CREATE TABLE simple (username varchar(255) PRIMARY KEY);")
+	dropTableString := fmt.Sprintf("DROP TABLE IF EXISTS %s;", TableName)
+	createTableString := fmt.Sprintf("CREATE TABLE %s (username varchar(255) PRIMARY KEY);", TableName)
 
-	_, err = s.db.Exec(context.Background(), dropTableString)
+	_, err = s.Db.Exec(context.Background(), dropTableString)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to drop table: %v\n", err)
-		os.Exit(1)
+		return errors.Join(err, errors.New("failed to drop table"))
 	}
 
-	_, err = s.db.Exec(context.Background(), createTableString)
+	_, err = s.Db.Exec(context.Background(), createTableString)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to drop table: %v\n", err)
+		return errors.Join(err, errors.New("failed to create table"))
 		os.Exit(1)
 	}
 
 	start := time.Now()
 
-	familynamesFileScanner := bufio.NewScanner(readFamilynamesFile)
-	familynamesFileScanner.Split(bufio.ScanLines)
+	familyNamesFileScanner := bufio.NewScanner(readFamilynamesFile)
+	familyNamesFileScanner.Split(bufio.ScanLines)
 	counter := 0
 	avgCounter := 0
 	batchSize := 1000
 
-	for familynamesFileScanner.Scan() {
-		familyname := familynamesFileScanner.Text()
-		fmt.Printf("FAMILYNAME: %v", familyname)
+	for familyNamesFileScanner.Scan() {
+		familyName := familyNamesFileScanner.Text()
+		fmt.Printf("FAMILYNAME: %v", familyName)
 		batchStart := time.Now()
 		usernames := make([]any, 0, batchSize)
 		valuesPlaceholder := make([]string, 0, batchSize)
@@ -83,18 +84,18 @@ func (s Seed) PgSimpleUsernameSeed() {
 		for usernamesFileScanner.Scan() {
 			counter++
 			batchIndex++
-			username := fmt.Sprintf("%v%v", usernamesFileScanner.Text(), strings.ToLower(familyname))
+			username := fmt.Sprintf("%v%v", usernamesFileScanner.Text(), strings.ToLower(familyName))
 			usernames = append(usernames, username)
 			valuesPlaceholder = append(valuesPlaceholder, fmt.Sprintf("($%d)", batchIndex%batchSize+1))
 
 			if batchIndex%batchSize == 0 {
 				avgCounter++
-				insertUsernameString := fmt.Sprintf("INSERT INTO simple (%s) VALUES %s;", "username", strings.Join(valuesPlaceholder, ", "))
-				_, err := s.db.Exec(context.Background(), insertUsernameString, usernames...)
+				insertUsernameString := fmt.Sprintf("INSERT INTO %s (%s) VALUES %s;", TableName, "username", strings.Join(valuesPlaceholder, ", "))
+				_, err := s.Db.Exec(context.Background(), insertUsernameString, usernames...)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to insert username %v due to %v", username, err.Error())
 					if !strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
-						os.Exit(1)
+						return errors.Join(err, errors.New("failed to drop table"))
 					}
 				}
 				fmt.Printf("Inserted %d records\n", counter)
@@ -108,4 +109,6 @@ func (s Seed) PgSimpleUsernameSeed() {
 		}
 	}
 	fmt.Printf("Took total of %v to insert %d records into database\n", time.Now().Sub(start), counter)
+
+	return nil
 }
