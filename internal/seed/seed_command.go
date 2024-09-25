@@ -1,6 +1,8 @@
 package seed
 
-import "com/pvivekvarma/1-B-username-search/internal/command"
+import (
+	"com/pvivekvarma/1-B-username-search/internal/command"
+)
 
 type SeedCommand struct {
 	Strategy SeedStrategy
@@ -13,7 +15,7 @@ func (s *SeedCommand) Execute() error {
 	if s.Seed == true {
 		err = s.Strategy.Execute()
 	}
-	if s.next != nil && err != nil {
+	if s.next != nil && err == nil {
 		err = s.next.Execute()
 	}
 	return err

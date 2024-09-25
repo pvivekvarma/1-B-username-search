@@ -17,6 +17,7 @@ type SimpleUsernamePKSearchStrategy struct {
 }
 
 func (s *SimpleUsernamePKSearchStrategy) Execute() error {
+	fmt.Print("Searching using SimpleUsernamePKSearchStrategy\n")
 	TableName := "testsimple"
 
 	queryUsernameString := fmt.Sprintf("SELECT username from %s where username=$1;", TableName)
@@ -32,6 +33,9 @@ func (s *SimpleUsernamePKSearchStrategy) Execute() error {
 		if err != nil {
 			return errors.Join(err, errors.New("search results parsing failed"))
 		}
+		fmt.Println("Username found!")
+		return nil
 	}
+	fmt.Println("Username not found!")
 	return nil
 }

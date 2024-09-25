@@ -18,10 +18,10 @@ var (
 	searchText     string
 )
 
-var SearchTypes = [...]string{"pg_simple"}
+var SearchTypes = [...]string{"pg_simple_pk"}
 
 func main() {
-	fmt.Println("Search 1 billion usernames (10 million in this case)")
+	fmt.Println("Search 1 billion usernames (100 million in this case)")
 	err := godotenv.Load()
 	if err != nil {
 		fmt.Println(err)
