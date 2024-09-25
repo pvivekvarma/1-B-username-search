@@ -18,7 +18,7 @@ var (
 	searchText     string
 )
 
-var SearchTypes = [...]string{"pg_simple_pk"}
+var SearchTypes = [...]string{"pg_username_pk"}
 
 func main() {
 	fmt.Println("Search 1 billion usernames (100 million in this case)")
@@ -32,7 +32,7 @@ func main() {
 
 func handleArgs() {
 	flag.BoolVar(&seed, "seed", false, "Seed database?")
-	flag.StringVar(&searchStrategy, "strategy", "pg_simple_pk", "Type of search")
+	flag.StringVar(&searchStrategy, "strategy", "pg_username_pk", "Type of search")
 	flag.StringVar(&searchText, "search", "", "The username to search")
 
 	flag.Parse()
@@ -49,7 +49,7 @@ func handleArgs() {
 	}
 
 	switch searchStrategy {
-	case "pg_simple_pk":
+	case "pg_username_pk":
 		connString := fmt.Sprintf("postgresql://%v:%v@%v:%v/%v", os.Getenv("PG_USERNAME"), os.Getenv("PG_PASSWORD"), os.Getenv("PG_HOST"), os.Getenv("PG_PORT"), os.Getenv("PG_NAME"))
 		conn, err := pgx.Connect(context.Background(), connString)
 		if err != nil {
@@ -58,13 +58,13 @@ func handleArgs() {
 		defer conn.Close(context.Background())
 
 		c := &seed2.SeedCommand{
-			Strategy: &seed2.SimpleUsernamePKSeedStrategy{
+			Strategy: &seed2.UsernamePKSeedStrategy{
 				Db: conn,
 			},
 			Seed: seed,
 		}
 		c.SetNext(&search.SearchCommand{
-			Strategy: &search.SimpleUsernamePKSearchStrategy{
+			Strategy: &search.UsernamePKSearchStrategy{
 				Db:         conn,
 				SearchText: searchText,
 			},

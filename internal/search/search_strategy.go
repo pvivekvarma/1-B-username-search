@@ -11,13 +11,13 @@ type SearchStrategy interface {
 	Execute() error
 }
 
-type SimpleUsernamePKSearchStrategy struct {
+type UsernamePKSearchStrategy struct {
 	Db         *pgx.Conn
 	SearchText string
 }
 
-func (s *SimpleUsernamePKSearchStrategy) Execute() error {
-	fmt.Print("Searching using SimpleUsernamePKSearchStrategy\n")
+func (s *UsernamePKSearchStrategy) Execute() error {
+	fmt.Print("Searching using UsernamePKSearchStrategy\n")
 	TableName := "testsimple"
 
 	queryUsernameString := fmt.Sprintf("SELECT username from %s where username=$1;", TableName)
