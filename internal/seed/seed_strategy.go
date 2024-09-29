@@ -1,7 +1,7 @@
 package seed
 
 import (
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type SeedStrategy interface {
@@ -9,7 +9,7 @@ type SeedStrategy interface {
 }
 
 type UsernamePKSeedStrategy struct {
-	Db *pgx.Conn
+	Db *pgxpool.Pool
 }
 
 func (s *UsernamePKSeedStrategy) Execute() error {
