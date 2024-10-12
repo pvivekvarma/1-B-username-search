@@ -4,11 +4,12 @@ import (
 	"com/pvivekvarma/1-B-username-search/internal/search"
 	"context"
 	"fmt"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/joho/godotenv"
 	"log"
 	"os"
 	"testing"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/joho/godotenv"
 )
 
 var (
@@ -30,7 +31,7 @@ func load(b *testing.B) {
 	queryRandomUsernames := fmt.Sprintf("SELECT username from testsimple ORDER BY random() LIMIT %d", 100)
 	rows, err := conn.Query(context.Background(), queryRandomUsernames)
 	if err != nil {
-		b.Fatalf("Failed querying random uesrnames")
+		b.Fatalf("Failed querying random uesrnames: %v", err.Error())
 	}
 
 	for rows.Next() {
