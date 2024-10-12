@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type SearchStrategy interface {
@@ -12,7 +12,7 @@ type SearchStrategy interface {
 }
 
 type UsernamePKSearchStrategy struct {
-	Db         *pgx.Conn
+	Db         *pgxpool.Pool
 	SearchText string
 }
 
@@ -33,9 +33,14 @@ func (s *UsernamePKSearchStrategy) Execute() error {
 		if err != nil {
 			return errors.Join(err, errors.New("search results parsing failed"))
 		}
-		fmt.Println("Username found!")
-		return nil
+		if username == s.SearchText {
+			fmt.Printf("Username %s found!\n", s.SearchText)
+		} else {
+			fmt.Printf("Username %s not found!\n", s.SearchText)
+		}
 	}
-	fmt.Println("Username not found!")
+
+	rows.Close()
+
 	return nil
 }

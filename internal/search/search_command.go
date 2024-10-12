@@ -9,7 +9,7 @@ type SearchCommand struct {
 
 func (s *SearchCommand) Execute() error {
 	err := s.Strategy.Execute()
-	if s.next != nil && err != nil {
+	if s.next != nil && err == nil {
 		err = s.next.Execute()
 	}
 	return err
