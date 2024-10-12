@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -25,6 +26,10 @@ func (s *UsernamePKSearchStrategy) Execute() error {
 	rows, err := s.Db.Query(context.Background(), queryUsernameString, s.SearchText)
 	if err != nil {
 		return errors.Join(err, errors.New("failed to search table"))
+	}
+
+	if !rows.Next() {
+		fmt.Printf("Username %s not found in database\n", s.SearchText)
 	}
 
 	if rows.Next() {

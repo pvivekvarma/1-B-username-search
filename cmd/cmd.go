@@ -1,15 +1,17 @@
 package main
 
 import (
+	"com/pvivekvarma/1-B-username-search/internal/command"
 	"com/pvivekvarma/1-B-username-search/internal/search"
 	"com/pvivekvarma/1-B-username-search/internal/seed"
 	"context"
 	"flag"
 	"fmt"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/joho/godotenv"
 	"log"
 	"os"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/joho/godotenv"
 )
 
 var (
@@ -56,22 +58,54 @@ func handleArgs() {
 			log.Fatalf("Unable to connect to database: %v\n", err)
 		}
 
-		c := &seed.SeedCommand{
-			Strategy: &seed.UsernamePKSeedStrategy{
-				Db: conn,
-			},
-			Seed: isSeed,
+		// Drawbacks with this approach.
+		// 	- What if a seed does not exist for a specific kind of search?
+		//	  Happens when the search algorithm is ready but the seed is done manually.
+		//	- How do we add to that chain?
+		//
+		// c := &seed.SeedCommand{
+		// 	Strategy: &seed.UsernamePKSeedStrategy{
+		// 		Db: conn,
+		// 	},
+		// 	Seed: isSeed,
+		// }
+		// c.SetNext(&search.SearchCommand{
+		// 	Strategy: &search.UsernamePKSearchStrategy{
+		// 		Db:         conn,
+		// 		SearchText: searchText,
+		// 	},
+		// })
+
+		var c command.Command
+		if isValidSearch {
+			search := &search.SearchCommand{
+				Strategy: &search.UsernamePKSearchStrategy{
+					Db:         conn,
+					SearchText: searchText,
+				},
+			}
+			c = search
 		}
-		c.SetNext(&search.SearchCommand{
-			Strategy: &search.UsernamePKSearchStrategy{
-				Db:         conn,
-				SearchText: searchText,
-			},
-		})
+
+		if isSeed {
+			seed := &seed.SeedCommand{
+				Strategy: &seed.UsernamePKSeedStrategy{
+					Db: conn,
+				},
+				Seed: isSeed,
+			}
+			if c != nil {
+				seed.SetNext(c)
+				c = seed
+			}
+		}
+
 		defer conn.Close()
-		err = c.Execute()
-		if err != nil {
-			log.Fatalf("Failed to isSeed: %v\n", err)
+		if c != nil {
+			err = c.Execute()
+			if err != nil {
+				log.Fatalf("Program failed with a non-zero exit code: %v\n", err)
+			}
 		}
 	}
 }
