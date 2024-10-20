@@ -20,7 +20,7 @@ var (
 	searchText     string
 )
 
-var SearchTypes = [...]string{"pg_username_pk"}
+var SearchTypes = [...]string{"pg_username_pk", "pg_username"}
 
 func main() {
 	fmt.Println("Search 1 billion usernames (100 million in this case)")
@@ -90,6 +90,45 @@ func handleArgs() {
 		if isSeed {
 			seed := &seed.SeedCommand{
 				Strategy: &seed.UsernamePKSeedStrategy{
+					Db: conn,
+				},
+				Seed: isSeed,
+			}
+			if c != nil {
+				seed.SetNext(c)
+				c = seed
+			}
+		}
+
+		defer conn.Close()
+		if c != nil {
+			err = c.Execute()
+			if err != nil {
+				log.Fatalf("Program failed with a non-zero exit code: %v\n", err)
+			}
+		}
+
+	case "pg_username":
+		connString := fmt.Sprintf("postgresql://%v:%v@%v:%v/%v", os.Getenv("PG_USERNAME"), os.Getenv("PG_PASSWORD"), os.Getenv("PG_HOST"), os.Getenv("PG_PORT"), os.Getenv("PG_NAME"))
+		conn, err := pgxpool.New(context.Background(), connString)
+		if err != nil {
+			log.Fatalf("Unable to connect to database: %v\n", err)
+		}
+
+		var c command.Command
+		if isValidSearch {
+			search := &search.SearchCommand{
+				Strategy: &search.UsernameSearchStrategy{
+					Db:         conn,
+					SearchText: searchText,
+				},
+			}
+			c = search
+		}
+
+		if isSeed {
+			seed := &seed.SeedCommand{
+				Strategy: &seed.UsernameSeedStrategy{
 					Db: conn,
 				},
 				Seed: isSeed,

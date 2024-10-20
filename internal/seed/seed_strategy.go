@@ -15,3 +15,12 @@ type UsernamePKSeedStrategy struct {
 func (s *UsernamePKSeedStrategy) Execute() error {
 	return UsernamePKSeed(s)
 }
+
+
+type UsernameSeedStrategy struct {
+	Db *pgxpool.Pool
+}
+
+func (s *UsernameSeedStrategy) Execute() error {
+	return UsernameSeed(s)
+}
