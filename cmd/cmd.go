@@ -1,15 +1,17 @@
 package main
 
 import (
+	"com/pvivekvarma/1-B-username-search/internal/command"
 	"com/pvivekvarma/1-B-username-search/internal/search"
 	"com/pvivekvarma/1-B-username-search/internal/seed"
 	"context"
 	"flag"
 	"fmt"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/joho/godotenv"
 	"log"
 	"os"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/joho/godotenv"
 )
 
 var (
@@ -18,7 +20,7 @@ var (
 	searchText     string
 )
 
-var SearchTypes = [...]string{"pg_username_pk"}
+var SearchTypes = [...]string{"pg_username_pk", "pg_username"}
 
 func main() {
 	fmt.Println("Search 1 billion usernames (100 million in this case)")
@@ -56,22 +58,75 @@ func handleArgs() {
 			log.Fatalf("Unable to connect to database: %v\n", err)
 		}
 
-		c := &seed.SeedCommand{
-			Strategy: &seed.UsernamePKSeedStrategy{
-				Db: conn,
-			},
-			Seed: isSeed,
+		var c command.Command
+		if isValidSearch {
+			search := &search.SearchCommand{
+				Strategy: &search.UsernamePKSearchStrategy{
+					Db:         conn,
+					SearchText: searchText,
+				},
+			}
+			c = search
 		}
-		c.SetNext(&search.SearchCommand{
-			Strategy: &search.UsernamePKSearchStrategy{
-				Db:         conn,
-				SearchText: searchText,
-			},
-		})
+
+		if isSeed {
+			seed := &seed.SeedCommand{
+				Strategy: &seed.UsernamePKSeedStrategy{
+					Db: conn,
+				},
+				Seed: isSeed,
+			}
+			if c != nil {
+				seed.SetNext(c)
+				c = seed
+			}
+		}
+
 		defer conn.Close()
-		err = c.Execute()
+		if c != nil {
+			err = c.Execute()
+			if err != nil {
+				log.Fatalf("Program failed with a non-zero exit code: %v\n", err)
+			}
+		}
+
+	case "pg_username":
+		connString := fmt.Sprintf("postgresql://%v:%v@%v:%v/%v", os.Getenv("PG_USERNAME"), os.Getenv("PG_PASSWORD"), os.Getenv("PG_HOST"), os.Getenv("PG_PORT"), os.Getenv("PG_NAME"))
+		conn, err := pgxpool.New(context.Background(), connString)
 		if err != nil {
-			log.Fatalf("Failed to isSeed: %v\n", err)
+			log.Fatalf("Unable to connect to database: %v\n", err)
+		}
+
+		var c command.Command
+		if isValidSearch {
+			search := &search.SearchCommand{
+				Strategy: &search.UsernameSearchStrategy{
+					Db:         conn,
+					SearchText: searchText,
+				},
+			}
+			c = search
+		}
+
+		if isSeed {
+			seed := &seed.SeedCommand{
+				Strategy: &seed.UsernameSeedStrategy{
+					Db: conn,
+				},
+				Seed: isSeed,
+			}
+			if c != nil {
+				seed.SetNext(c)
+				c = seed
+			}
+		}
+
+		defer conn.Close()
+		if c != nil {
+			err = c.Execute()
+			if err != nil {
+				log.Fatalf("Program failed with a non-zero exit code: %v\n", err)
+			}
 		}
 	}
 }

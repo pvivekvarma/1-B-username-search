@@ -18,7 +18,7 @@ var (
 	conn *pgxpool.Pool
 )
 
-func load(b *testing.B) {
+func load(b *testing.B, tableName string) {
 	err := godotenv.Load()
 
 	connString := fmt.Sprintf("postgresql://%v:%v@%v:%v/%v", os.Getenv("PG_USERNAME"), os.Getenv("PG_PASSWORD"), os.Getenv("PG_HOST"), os.Getenv("PG_PORT"), os.Getenv("PG_NAME"))
@@ -28,7 +28,7 @@ func load(b *testing.B) {
 	}
 
 	randUsernames = make([]string, 0)
-	queryRandomUsernames := fmt.Sprintf("SELECT username from testsimple ORDER BY random() LIMIT %d", 100)
+	queryRandomUsernames := fmt.Sprintf("SELECT username from %s ORDER BY random() LIMIT %d", tableName, 100)
 	rows, err := conn.Query(context.Background(), queryRandomUsernames)
 	if err != nil {
 		b.Fatalf("Failed querying random uesrnames: %v", err.Error())
@@ -48,7 +48,7 @@ func load(b *testing.B) {
 }
 
 func BenchmarkUsernamePKSearch(b *testing.B) {
-	load(b)
+	load(b, "usernames_pk")
 
 	b.ResetTimer()
 
@@ -59,6 +59,24 @@ func BenchmarkUsernamePKSearch(b *testing.B) {
 		}
 
 		err := usernamePkSearch.Execute()
+		if err != nil {
+			b.Fatalf("Benchmark failed %v", err)
+		}
+	}
+}
+
+func BenchmarkUsernameSearch(b *testing.B) {
+	load(b, "usernames")
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		usernameSearch := &search.UsernameSearchStrategy{
+			Db:         conn,
+			SearchText: randUsernames[i%len(randUsernames)],
+		}
+
+		err := usernameSearch.Execute()
 		if err != nil {
 			b.Fatalf("Benchmark failed %v", err)
 		}

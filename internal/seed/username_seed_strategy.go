@@ -13,12 +13,12 @@ import (
 	"time"
 )
 
-func UsernamePKSeed(s *UsernamePKSeedStrategy) error {
+func UsernameSeed(s *UsernameSeedStrategy) error {
 	absPathUsernames, _ := filepath.Abs("../data/xato-net-10-million-usernames.txt")
 	absPathFamilynames, _ := filepath.Abs("../data/familynames.txt")
 	readUsernamesFile, err := os.Open(absPathUsernames)
 
-	TableName := "usernames_pk"
+	TableName := "usernames"
 	if err != nil {
 		return errors.Join(err, errors.New("failed to open file"))
 	}
@@ -43,7 +43,7 @@ func UsernamePKSeed(s *UsernamePKSeedStrategy) error {
 	}(readFamilynamesFile)
 
 	dropTableString := fmt.Sprintf("DROP TABLE IF EXISTS %s;", TableName)
-	createTableString := fmt.Sprintf("CREATE TABLE %s (username varchar(255) PRIMARY KEY);", TableName)
+	createTableString := fmt.Sprintf("CREATE TABLE %s (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), username varchar(255) UNIQUE);", TableName)
 
 	_, err = s.Db.Exec(context.Background(), dropTableString)
 	if err != nil {
