@@ -58,24 +58,6 @@ func handleArgs() {
 			log.Fatalf("Unable to connect to database: %v\n", err)
 		}
 
-		// Drawbacks with this approach.
-		// 	- What if a seed does not exist for a specific kind of search?
-		//	  Happens when the search algorithm is ready but the seed is done manually.
-		//	- How do we add to that chain?
-		//
-		// c := &seed.SeedCommand{
-		// 	Strategy: &seed.UsernamePKSeedStrategy{
-		// 		Db: conn,
-		// 	},
-		// 	Seed: isSeed,
-		// }
-		// c.SetNext(&search.SearchCommand{
-		// 	Strategy: &search.UsernamePKSearchStrategy{
-		// 		Db:         conn,
-		// 		SearchText: searchText,
-		// 	},
-		// })
-
 		var c command.Command
 		if isValidSearch {
 			search := &search.SearchCommand{
